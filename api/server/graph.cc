@@ -170,7 +170,7 @@ bool Graph::Start(std::string dpdk_args) {
     }
     pg_nic_capabilities(nic_.get(), &useless, &nic_capa_tx);
     if (app::config.no_offload ||
-        !(nic_capa_tx & PG_NIC_TX_OFFLOAD_TCP_TSO)) {
+        !(nic_capa_tx & PG_NIC_TX_OFFLOAD_OUTER_IPV4_CKSUM)) {
         if (app::config.no_offload)
             app::log.Info("offloading manually desactivated");
         else
