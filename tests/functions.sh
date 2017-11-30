@@ -49,7 +49,7 @@ function scp_to {
     local_file=$2
     distant_file=$3
     key=$BUTTERFLY_BUILD_ROOT/vm.rsa
-    scp -P 500$id -i $key $local_file root@127.0.0.1:$distant_file &> /dev/null
+    scp -r -P 500$id -i $key $local_file root@127.0.0.1:$distant_file
 }
 
 function ssh_bash {
@@ -488,10 +488,10 @@ function qemu_start {
     ip=$2
     echo "[VM $id] starting"
     SOCKET_PATH=/tmp/qemu-vhost-nic-$id
-    IMG_PATH=$BUTTERFLY_BUILD_ROOT/vm.qcow
+    IMG_PATH=$BUTTERFLY_BUILD_ROOT/vm-new.qcow
     MAC=52:54:00:12:34:0$id
 
-    CMD="sudo qemu-system-x86_64 -netdev user,id=network0,hostfwd=tcp::500${id}-:22 -device e1000,netdev=network0 -m 124M -enable-kvm -chardev socket,id=char0,path=$SOCKET_PATH -netdev type=vhost-user,id=mynet1,chardev=char0,vhostforce -device virtio-net-pci,csum=off,gso=off,mac=$MAC,netdev=mynet1 -object memory-backend-file,id=mem,size=124M,mem-path=/mnt/huge,share=on -numa node,memdev=mem -mem-prealloc -drive file=$IMG_PATH -snapshot -nographic"
+    CMD="sudo qemu-system-x86_64 -cpu host -netdev user,id=network0,hostfwd=tcp::500${id}-:22 -device e1000,netdev=network0 -m 124M -enable-kvm -chardev socket,id=char0,path=$SOCKET_PATH -netdev type=vhost-user,id=mynet1,chardev=char0,vhostforce -device virtio-net-pci,csum=off,gso=off,mac=$MAC,netdev=mynet1 -object memory-backend-file,id=mem,size=124M,mem-path=/mnt/huge,share=on -numa node,memdev=mem -mem-prealloc -drive file=$IMG_PATH -snapshot -nographic"
     exec $CMD &> $BUTTERFLY_BUILD_ROOT/qemu_${id}_output &
     pid=$!
 
