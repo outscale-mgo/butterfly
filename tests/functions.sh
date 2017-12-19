@@ -491,8 +491,9 @@ function qemu_start {
     IMG_PATH=$BUTTERFLY_BUILD_ROOT/vm-new.qcow
     MAC=52:54:00:12:34:0$id
 
-    CMD="sudo qemu-system-x86_64 -cpu host -netdev user,id=network0,hostfwd=tcp::500${id}-:22 -device e1000,netdev=network0 -m 124M -enable-kvm -chardev socket,id=char0,path=$SOCKET_PATH -netdev type=vhost-user,id=mynet1,chardev=char0,vhostforce -device virtio-net-pci,csum=off,gso=off,mac=$MAC,netdev=mynet1 -object memory-backend-file,id=mem,size=124M,mem-path=/mnt/huge,share=on -numa node,memdev=mem -mem-prealloc -drive file=$IMG_PATH -snapshot -nographic"
-    exec $CMD &> $BUTTERFLY_BUILD_ROOT/qemu_${id}_output &
+    CMD="sudo qemu-system-x86_64 -cpu host -netdev user,id=network0,hostfwd=tcp::500${id}-:22 -device e1000,netdev=network0 -m 1024M -enable-kvm -chardev socket,id=char0,path=$SOCKET_PATH -netdev type=vhost-user,id=mynet1,chardev=char0,vhostforce -device virtio-net-pci,csum=off,gso=off,mac=$MAC,netdev=mynet1 -object memory-backend-file,id=mem,size=1024M,mem-path=/mnt/huge,share=on -numa node,memdev=mem -drive file=$IMG_PATH -snapshot -display vnc=:$id"
+    #    exec $CMD &> $BUTTERFLY_BUILD_ROOT/qemu_${id}_output &
+    exec $CMD &
     pid=$!
 
     echo "hello" | nc -w 1  127.0.0.1 500$id &> /dev/null
@@ -516,7 +517,7 @@ function qemu_start {
     ssh_run_timeout $id 60 true
 
     # Configure IP on vhost interface
-    ssh_run $id ip link set ens4 up
+    #ssh_run $id ip link set ens4 up
     if [ "$ip" == "dhcp-server" ]; then
         qemu_add_ipv4 $id 42.0.0.$id/24
         qemu_add_ipv6 $id 2001:db8:2000:aff0::$id/64
