@@ -418,9 +418,9 @@ function ssh_no_connection_test {
 function qemu_add_ipv4 {
     id=$1
     ips="${@:2}"
-    for ip in $ips; do
+    for ip_mask in $ips; do
         echo "[VM $id] add ipv4 $ip"
-        ssh_run $id ip addr add $ip dev ens4
+        ssh_run $id ip addr add $ip_mask dev ens4
     done
 }
 
