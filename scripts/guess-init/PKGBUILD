@@ -1,0 +1,25 @@
+pkgname=butterfly-nic-init
+pkgver=1
+pkgrel=1
+pkgdesc='scripts use to ease nic enabling for testing purposes'
+arch=('any')
+url='https://github.com/outscale-mgo/butterfly/tree/guess-init/scripts/guess-init'
+license=(BSD)
+
+depends=()
+
+source=("https://github.com/outscale-mgo/butterfly/archive/guess-init.zip")
+# checksums provided by packager
+sha256sums=(6f62de62ec25ffa517458c0a4bd10670d91dbbab97e2b601157e380cc09f1da0)
+# backup=(etc/default/sndiod)
+
+package() {
+	  cd "butterfly-guess-init/scripts/guess-init/"
+
+	  install -D -m 755 ./network-guess-ip \
+	  	  "$pkgdir/usr/bin/network-guess-ip"
+	  install -D -m 755 ./network-init \
+	  	  "$pkgdir/usr/bin/network-init"
+	  install -D -m 644 ./butterfly-netinit.service \
+	  	  "$pkgdir/usr/lib/systemd/system/butterfly-netinit.service"
+}
