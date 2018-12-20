@@ -1,0 +1,18 @@
+#!/bin/bash                                                                                                                                                                                                                                                                                                                                                              
+
+# Copyright (C) 2018 Outscale SAS
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted.
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS.
+# IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES
+# OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+# WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+# ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ 
+LINK_LINE=$(ip addr | grep link/ether | tail -n 1)
+MAC_ADDR=$( echo $LINK_LINE | awk '{split($0,a," "); print a[2]}' )
+A4=$( echo $MAC_ADDR | awk '{split($0,a,":"); print a[4]}' )
+A5=$( echo $MAC_ADDR | awk '{split($0,a,":"); print a[5]}' )
+A6=$( echo $MAC_ADDR | awk '{split($0,a,":"); print a[6]}' )
+printf "%d.%d.%d.%d\n" 42 0x$A4 0x$A5 0x$A6

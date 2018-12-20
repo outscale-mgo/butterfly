@@ -1,0 +1,13 @@
+[Unit]
+Description=Butterfly nic init
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/network-init
+ExecStop=/bin/kill -2 $MAINPID
+KillMode=process
+Restart=on-failure
+RestartSec=10s
+
+[Install]
+WantedBy=multi-user.target
