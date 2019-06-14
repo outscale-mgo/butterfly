@@ -18,9 +18,13 @@
 extern "C" {
 #include <glib.h>
 #include <arpa/inet.h>
+#include <netinet/ether.h>
 #include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <sys/sysinfo.h>
 #include <sys/syscall.h>
+#include <sys/time.h>
 #include <unistd.h>
 }
 #include <utility>
@@ -29,6 +33,8 @@ extern "C" {
 #include <cstring>
 #include "api/server/app.h"
 #include "api/server/graph.h"
+#include "api/common/crypto.h"
+#include "api/common/vec.h"
 
 namespace {
 void PgfakeDestroy(struct pg_brick *) {}
@@ -55,6 +61,229 @@ void BuildMulticastIp6(uint8_t *multicast_ip, uint32_t vni) {
     multicast_ip[13] = reinterpret_cast<uint8_t *>(& vni)[2];
     multicast_ip[12] = reinterpret_cast<uint8_t *>(& vni)[3];
 }
+
+#define PG_FOREACH_BIT(mask, it)                                        \
+        for (uint64_t tmpmask = mask, it;                               \
+             tmpmask && ({ it = ctz64(tmpmask); 1;}); \
+        tmpmask &= ~(ONE64 << it))
+
+struct h {
+    struct ether_header e;
+    struct ip ip;
+    struct icmp icmp;
+};
+
+constexpr int BENCH_RCV_MAX_L = 256;
+constexpr int BENCH_MAX_L = BENCH_RCV_MAX_L;
+constexpr int BENCH_MAX_MASK_L = BENCH_MAX_L / 64;
+constexpr int TIMEOUT = 100000;
+
+static_assert(((BENCH_MAX_L % 64) == 0) && BENCH_MAX_L > 0,
+              "BENCH_MAX_L must be a multiple of 64 and > 0");
+
+struct bench_info {
+    uint8_t smac[6];
+    uint8_t align0[2];
+    uint8_t dmac[6];
+    uint8_t align1[2];
+    int32_t ipsrc;
+    int32_t ipdest;
+    uint16_t seq;
+};
+
+struct bench_rcv {
+    struct bench_info binfos[BENCH_RCV_MAX_L];
+    int droped;
+    int l;
+};
+
+struct bench_snd {
+    struct bench_info binfo;
+    struct {
+        uint32_t time;
+        uint16_t seq;
+    } sinfos[BENCH_MAX_L];
+    uint64_t si_mask[BENCH_MAX_MASK_L];
+    uint32_t res[1024];
+    uint32_t mean;
+    int not_droped;
+    int droped;
+};
+
+#ifndef unlikely
+# define unlikely(x)    __builtin_expect(!!(x), 0)
+#endif
+
+int mk_hdr(pg_packet_t *pkt, struct bench_info *b,
+           int icmp_type, uint16_t seq) {
+    struct h *hdr;
+
+    pg_packet_set_l2_len(pkt, sizeof(struct ether_header));
+    pg_packet_set_l3_len(pkt, sizeof(struct ip));
+    pg_packet_set_l4_len(pkt, sizeof(struct icmp));
+    if (unlikely(pg_packet_compute_len(pkt, 0) < 0))
+        return -1;
+
+    hdr = reinterpret_cast<struct h *>(pg_packet_data(pkt));
+    /* the good code athe the wrong place */
+    memcpy(hdr->e.ether_shost, b->smac, 6);
+    memcpy(hdr->e.ether_dhost, b->dmac, 6);
+    hdr->e.ether_type = PG_BE_ETHER_TYPE_IPv4;
+
+    hdr->ip.ip_hl = 6;
+    hdr->ip.ip_v = IPVERSION;
+    hdr->ip.ip_tos = 0;
+    hdr->ip.ip_len = sizeof(struct ip) + sizeof(struct icmp);
+    hdr->ip.ip_id = 0;
+    hdr->ip.ip_off = 0;
+    hdr->ip.ip_ttl = 64;
+    hdr->ip.ip_p = PG_ICMP_PROTOCOL;
+    hdr->ip.ip_sum = 0; /* let's tell the nic to do this */
+    hdr->ip.ip_src.s_addr = b->ipsrc;
+    hdr->ip.ip_dst.s_addr = b->ipdest;
+    hdr->icmp.icmp_type = icmp_type;
+    hdr->icmp.icmp_code = 0;
+    hdr->icmp.icmp_cksum = 0;
+    hdr->icmp.icmp_id = 0xb00b;
+    hdr->icmp.icmp_seq = seq;
+    /* hdr->icmp.icmp_data can contain anything, I'm tempted do do ascii art */
+    /* But nothing seems a better plan */
+    return 0;
+}
+
+void rx_rcv_callback(struct pg_brick *b, pg_packet_t **burst,
+                     uint16_t len, void *private_data) {
+    int i = 0;
+
+    V_FOREACH_UNTIL(burst, pkt, (i++ < len)) {
+        bench_rcv *rcv_nfo = reinterpret_cast<bench_rcv *>(private_data);
+        bench_info *binfo;
+        struct h* pdata;
+
+        if (rcv_nfo->l >= BENCH_RCV_MAX_L) {
+            ++rcv_nfo->droped;
+            return;
+        }
+        binfo = &rcv_nfo->binfos[rcv_nfo->l++];
+        pdata = pg_packet_cast_data(pkt, struct h);
+        memcpy(binfo->smac, pdata->e.ether_dhost, 6);
+        memcpy(binfo->dmac, pdata->e.ether_shost, 6);
+        binfo->ipdest = pdata->ip.ip_dst.s_addr;
+        binfo->ipsrc = pdata->ip.ip_src.s_addr;
+        binfo->seq = pdata->icmp.icmp_seq;
+    }
+}
+
+void tx_rcv_callback(struct pg_brick *b, pg_packet_t **burst,
+                     uint16_t *len, void *private_data) {
+    bench_rcv *rcv_nfo = reinterpret_cast<bench_rcv *>(private_data);
+    bench_info *binfos = rcv_nfo->binfos;
+    int l = rcv_nfo->l;
+    int i = l;
+
+    /* need to get packets from some vector to know to whom I need to answer */
+    V_FOREACH_UNTIL(binfos, binfo,
+                    (--i >= 0 && (mk_hdr(burst[i], &binfo, 0,
+                                         binfo.seq) >= 0)));
+    *len = l - i;
+    rcv_nfo->l = i + 1;
+}
+
+inline uint32_t get_time() {
+    struct timeval tv;
+
+    gettimeofday(&tv, NULL);
+    return 1000000 * tv.tv_sec + tv.tv_usec;
+}
+
+void rx_snd_callback(struct pg_brick *b, pg_packet_t **burst,
+                     uint16_t len, void *private_data) {
+    if (!len)
+        return;
+
+    bench_snd *bsnd = reinterpret_cast<bench_snd *>(private_data);
+    int i = 0;
+
+
+    if (bsnd->not_droped + 64 >= 1024) {
+        uint32_t *res = bsnd->res;
+        uint64_t mean = 0;
+
+        V_FOREACH(res, r) {
+            mean += r;
+        }
+        mean = mean / bsnd->not_droped;
+        printf("ping mean time on %d pkts: %ld us, droped: %d\n",
+               bsnd->not_droped, mean, bsnd->droped);
+        bsnd->not_droped = 0;
+    }
+
+    /* I don't want the report here ^ to influence time here V */
+    uint32_t time = get_time();
+
+    for (int j = 0; j < BENCH_MAX_MASK_L; ++j) {
+        uint64_t m = bsnd->si_mask[j];
+
+        for (; m ;) {
+            uint32_t idx = __builtin_ctzll(m);
+            uint64_t bit = 1LLU << idx;
+
+            m &= ~bit;
+
+            idx += (j * 64);
+            V_FOREACH_UNTIL(burst, pkt, (i++ < len)) {
+                struct h *hdr = pg_packet_cast_data(pkt, struct h);
+
+                if (hdr->icmp.icmp_seq == bsnd->sinfos[idx].seq) {
+                    bsnd->res[bsnd->not_droped++] =
+                            time - bsnd->sinfos[idx].time;
+                    bsnd->si_mask[j] &= ~bit;
+                }
+            }
+        }
+    }
+}
+
+
+void tx_snd_callback(struct pg_brick *b, pg_packet_t **burst,
+                     uint16_t *len, void *private_data) {
+    bench_snd *bsnd = reinterpret_cast<bench_snd *>(private_data);
+    bench_info *binfo = &bsnd->binfo;
+    static uint16_t seq;
+    uint32_t time = get_time();
+    int idx = -1;
+
+    for (int j = 0; j < BENCH_MAX_MASK_L; ++j) {
+        uint64_t m = bsnd->si_mask[j];
+        for (int i = 0; i < 64; ++i) {
+            idx = i + j * 64;
+            /* Check Timeout here */
+            if (unlikely((m & (1 << i)) &&
+                         bsnd->sinfos[idx].time - time > TIMEOUT)) {
+                ++bsnd->droped;
+                /* We just overwrite current elem */
+                goto find;
+            }
+            if (!(m & (1 << i))) {
+                /* A sub function would be "more clean"
+                 * sadly I'm not sure what "more clean" mean*/
+                goto find;
+            }
+        }
+    }
+    /* sad :( */
+    *len = 0;
+    return;
+find:
+
+    bsnd->sinfos[idx].seq = seq;
+    bsnd->sinfos[idx].time = time;
+    if (mk_hdr(burst[0], binfo, 8, seq++) < 0) {
+        return;
+    }
+    *len = 1;
+}
+
 
 }  // namespace
 
@@ -514,6 +743,26 @@ bool Graph::NicAdd(app::Nic *nic_) {
             PG_ERROR_(app::pg_error);
             return false;
         }
+    } else if (nic.type == app::BENCH) {
+        pg_rxtx_rx_callback_t rx_callback = NULL;
+        pg_rxtx_tx_callback_t tx_callback = NULL;
+
+        name = "bench-";
+        if (nic.btype == app::ICMP_SND_LIKE) {
+            rx_callback = rx_snd_callback;
+            tx_callback = tx_snd_callback;
+            name += "snd-";
+        } else {
+            rx_callback = rx_rcv_callback;
+            tx_callback = tx_rcv_callback;
+            name += "rcv-";
+        }
+        name += gn.id;
+        gn.vhost = BrickShrPtr(pg_rxtx_new(name.c_str(),
+                                           rx_callback,
+                                           tx_callback, NULL),
+                               pg_brick_destroy);
+
     } else {
         LOG_ERROR_("unknow vhost type");
         return false;

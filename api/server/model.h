@@ -72,6 +72,12 @@ struct Cidr {
 enum NicType {
     VHOST_USER_SERVER = 0,
     TAP = 1,
+    BENCH = 2,
+};
+
+enum BenchType {
+    ICMP_SND_LIKE = 0,
+    ICMP_RCV_LIKE = 1,
 };
 
 struct Nic {
@@ -88,6 +94,7 @@ struct Nic {
     std::string sniff_target_nic_id;
     bool bypass_filtering;
     enum NicType type;
+    enum BenchType btype;
     std::string path;
 };
 
