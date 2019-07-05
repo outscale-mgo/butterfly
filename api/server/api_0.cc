@@ -802,20 +802,35 @@ bool Api0::Convert(const MessageV0_Nic &nic_message, app::Nic *nic_model) {
     if (nic_message.has_type()) {
         nic_model->type = static_cast<enum app::NicType>(nic_message.type());
         if (nic_model->type == app::BENCH) {
-            if (!nic_message.has_bench_type()) {
+            printf("IN !\n");
+            if (!nic_message.has_btype()) {
+                printf("boum %d %d %d\n", nic_message.has_btype(),
+                       nic_message.has_dip(), nic_message.has_dmac());
                 return false;
             }
-            if (nic_message.bench_type() == "ICMP-like-snd")
+            printf("btype ! %s\n", nic_message.btype().c_str());
+            if (nic_message.btype() == "ICMP_SND_LIKE") {
                 nic_model->btype = app::ICMP_SND_LIKE;
-            else if (nic_message.bench_type() == "ICMP-like-rcv")
+                printf("get mac !\n");
+                if (!nic_message.has_dip() || !nic_message.has_dmac())
+                    return false;
+                if (!Convert(nic_message.dmac(), &nic_model->dmac))
+                    return false;
+                printf("l'ip !\n");
+                if (!Convert(nic_message.dip(), &nic_model->dip))
+                    return false;
+                printf("new nic alleright !\n");
+            } else if (nic_message.btype() == "ICMP_RCV_LIKE") {
                 nic_model->btype = app::ICMP_RCV_LIKE;
-            else
+            } else {
                 return false;
+            }
         }
     }
     // Path
     if (nic_message.has_path())
         nic_model->path = nic_message.path();
+    printf("RETURN TRUE;\n");
     return true;
 }
 

@@ -55,6 +55,7 @@ class Mac {
     bool Bytes(uint8_t *data) const;
     bool operator== (const Mac& a) const;
     Mac operator= (const std::string &a);
+    uint8_t *data() {return data_;}
  private:
     std::string mac_;
     uint8_t data_[6];
@@ -85,6 +86,8 @@ struct Nic {
     explicit Nic(std::string id);
     std::string id;
     Mac mac;
+    Mac dmac;
+    Ip dip;
     uint32_t vni;
     std::vector<Ip> ip_list;
     std::vector<std::string> security_groups;

@@ -191,7 +191,11 @@ message MessageV0 {
     optional string packet_trace_path = 12;
     //if type is benchmark, the kind of bebchmark you want to do
     // ICMP-like-snd and ICMP-like-rcv are the only options avable now
-    optional string bench_type = 13;
+    optional string btype = 13;
+    // for benchmark, dip and dmac are dest mac and dest ip,
+    // same format as ip and mac
+    optional string dip = 14;
+    optional string dmac = 15;
   }
 
   // NIC statistics
