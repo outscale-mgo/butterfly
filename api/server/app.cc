@@ -49,6 +49,7 @@ Config::Config() {
     dpdk_args = DPDK_DEFAULT_ARGS;
     tid = 0;
     nic_mtu = "";
+    vtep_udp_port = PG_VTEP_DST_PORT;
     dpdk_port = 0;
     no_offload = 0;
 }
@@ -100,6 +101,8 @@ bool Config::parse_cmd(int argc, char **argv) {
         {"graph-cpu-core", 'u', 0, G_OPTION_ARG_STRING, &graph_core_id_cmd,
          "Choose your CPU core where to run packet processing (default=0)",
          "ID"},
+        {"vtep-udp-port", 'U', 0, G_OPTION_ARG_NONE, &config.vtep_udp_port,
+	 "vtep UDP port (default 4789)", nullptr},
         {"packet-trace", 't', 0, G_OPTION_ARG_NONE, &config.packet_trace,
          "Trace packets going through Butterfly", nullptr},
         {"no-syslog", 0, 0, G_OPTION_ARG_NONE, &silentlog,

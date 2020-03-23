@@ -403,7 +403,7 @@ bool Graph::Start(std::string dpdk_args) {
     // Create vtep brick
     vtep_ = BrickShrPtr(pg_vtep_new_by_string("vxlan", 50, PG_WEST_SIDE,
                                               app::config.external_ip.c_str(),
-                                              mac, PG_VTEP_DST_PORT,
+                                              mac, app::config.vtep_udp_port,
                                               PG_VTEP_ALL_OPTI, &app::pg_error),
                         pg_brick_destroy);
     isVtep6_ = !strcmp(pg_brick_type(vtep_.get()), "vtep6");
