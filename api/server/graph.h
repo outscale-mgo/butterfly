@@ -24,6 +24,7 @@ constexpr int BENCH_MAX_MASK_L = BENCH_MAX_L / 64;
 
 extern "C" {
 #include <glib.h>
+#include <netinet/ether.h>
 }
 #include <mutex>
 #include <memory>
@@ -126,6 +127,7 @@ class Graph {
         UNLINK,
         UNLINK_EDGE,
         ADD_VNI,
+        ADD_VNI_DST,
         UPDATE_POLL,
         FW_RELOAD,
         FW_NEW,
@@ -145,6 +147,14 @@ class Graph {
     struct RpcUnlink_edge {
         struct pg_brick *w;
         struct pg_brick *e;
+    };
+
+    struct RpcAddVniDst {
+        struct pg_brick *vtep;
+        uint32_t vni;
+        struct ether_addr mac_vm;
+        struct ether_addr mac;
+        uint32_t dst_ip4;
     };
 
     struct RpcAddVni {
@@ -187,6 +197,7 @@ class Graph {
             struct RpcUnlink unlink;
             struct RpcUnlink_edge unlink_edge;
             struct RpcAddVni add_vni;
+            struct RpcAddVniDst add_vni_dst;
             struct RpcUpdatePoll update_poll;
             struct RpcFwReload fw_reload;
             struct RpcFwNew fw_new;

@@ -589,6 +589,15 @@ bool Graph::PollerUpdate(struct RpcQueue **list, struct pg_error *err) {
                 if (pg_error_is_set(&err))
                     PG_ERROR_(err);
                 break;
+            case ADD_VNI_DST:
+		    pg_vtep4_add_vni_dst(
+                        a->add_vni_dst.vtep,
+                        a->add_vni_dst.vni,
+                        a->add_vni_dst.mac_vm,
+                        a->add_vni_dst.mac,
+                        a->add_vni_dst.dst_ip4
+			    );
+		    break;
             case ADD_VNI:
                 if (isVtep6_) {
                     if (pg_vtep_add_vni(a->add_vni.vtep,
@@ -650,6 +659,12 @@ bool Graph::NicAdd(app::Nic *nic_) {
         return false;
     }
 
+    if (nic_.butterfly_ip != app::config.external_ip) {
+        add_dst_vni(vtep_, nic_.mac.ether_addr(),
+                    nic_.mac_butterflyether_addr(),
+                    nic_.ip_butterfly);
+        return true;
+    }
     // Create VNI if it does not exists
     auto it = vnis_.find(nic.vni);
     if (it == vnis_.end()) {
@@ -1425,6 +1440,16 @@ void Graph::brick_destroy(BrickShrPtr b) {
     a->action = BRICK_DESTROY;
     a->brick_destroy.b = b.get();
     g_async_queue_push(queue_, a);
+}
+
+void Graph::add_dst_vni(BrickShrPtr vtep, struct ether_addr mac_vm,
+			struct ether_addr mac, uint32_t dst_ip4) {
+    struct RpcQueue *a = g_new(struct RpcQueue, 1);
+    a->action = ADD_VNI_DST;
+    a->add_vni_dst.vtep = vtep.get();
+    a->add_vni_dst.mac_vm = mac_vm;
+    a->add_vni_dst.mac = mac;
+    a->add_vni_dst.dst_ip4 = dst_ip4;
 }
 
 void Graph::add_vni(BrickShrPtr vtep, BrickShrPtr neighbor, uint32_t vni) {

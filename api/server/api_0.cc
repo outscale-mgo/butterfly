@@ -826,7 +826,7 @@ bool Api0::Convert(const MessageV0_Nic &nic_message, app::Nic *nic_model) {
 
                 if (!nic_message.has_dip() || !nic_message.has_dmac())
                     return false;
-                if (!Convert(nic_message.dmac(), &nic_model->dmac))
+                 if (!Convert(nic_message.dmac(), &nic_model->dmac))
                     return false;
                 if (!Convert(nic_message.dip(), &nic_model->dip))
                     return false;
@@ -840,6 +840,13 @@ bool Api0::Convert(const MessageV0_Nic &nic_message, app::Nic *nic_model) {
     // Path
     if (nic_message.has_path())
         nic_model->path = nic_message.path();
+
+    // Butterfly informations
+    if (nic_message.has_butterfly_ip()) {
+	    if (!Convert(nic_message.butterfly_mac(), &nic_model->mac_butterfly) ||
+		!Convert(nic_message.butterfly_ip(), &nic_model->ip_butterfly))
+		    return false;
+    }
     return true;
 }
 

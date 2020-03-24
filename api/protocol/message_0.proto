@@ -196,6 +196,12 @@ message MessageV0 {
     // same format as ip and mac
     optional string dip = 14;
     optional string dmac = 15;
+    // the butterfly ip, if IP is the same as server ip, then butterfly will
+    // normally add the nic, otherwise butterfly will add the nic informtion to
+    // his vtep but won't create any new nic
+    optional string butterfly_ip = 16;
+    // butterfly mac
+    optional string butterfly_mac = 17;
   }
 
   // NIC statistics

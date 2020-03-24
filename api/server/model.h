@@ -18,6 +18,10 @@
 #ifndef API_SERVER_MODEL_H_
 #define API_SERVER_MODEL_H_
 
+extern "C" {
+#include <netinet/ether.h>
+}
+
 #include <string>
 #include <vector>
 #include <map>
@@ -57,6 +61,12 @@ class Mac {
     bool operator== (const Mac& a) const;
     Mac operator= (const std::string &a);
     uint8_t *data() {return data_;}
+    struct ether_addr ether_addr() {
+        struct ether_addr r;
+
+        memcpy(&r, data_, 6);
+        return r;
+    }
  private:
     std::string mac_;
     uint8_t data_[6];
@@ -100,6 +110,8 @@ struct Nic {
     enum NicType type;
     enum BenchType btype;
     std::string path;
+    Mac mac_butterfly;
+    Ip ip_butterfly;
 };
 
 struct Rule {
