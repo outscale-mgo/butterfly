@@ -1,7 +1,5 @@
 set(DPDK_SOURCE_DIR ${3RDPARTY_DIR}/dpdk)
 set(PROTOBUF_SOURCE_DIR ${3RDPARTY_DIR}/protobuf)
-set(LIBZMQ_SOURCE_DIR ${3RDPARTY_DIR}/libzmq)
-set(ZMQPP_SOURCE_DIR ${3RDPARTY_DIR}/zmqpp)
 set(PG_SOURCE_DIR ${3RDPARTY_DIR}/packetgraph)
 
 ExternalProject_Add(dpdk
@@ -15,40 +13,6 @@ ExternalProject_Add(dpdk
 	INSTALL_DIR ${DPDK_INSTALL_DIR}
 	INSTALL_COMMAND  touch ${DPDK_INSTALL_DIR}/build && rm -rvf ${DPDK_INSTALL_DIR}/build && touch ${DPDK_INSTALL_DIR}/lib && rm  ${DPDK_INSTALL_DIR}/lib  && mv -vf ${DPDK_SOURCE_DIR}/build ${DPDK_INSTALL_DIR} && ln -s ${DPDK_SOURCE_DIR}/lib ${DPDK_INSTALL_DIR}/lib
 	LOG_BUILD 1 Building dpdk)
-
-ExternalProject_Add(protobuf
-	SOURCE_DIR ${PROTOBUF_SOURCE_DIR}
-	CONFIGURE_COMMAND /bin/cp -r ${PROTOBUF_SOURCE_DIR} ${3RDPARTY_INSTALL_DIR} && cd ${PROTOBUF_INSTALL_DIR} && ./autogen.sh && ./configure
-	DOWNLOAD_DIR ${PROJECT_SOURCE_DIR}
-	DOWNLOAD_COMMAND git submodule update --init ${PROTOBUF_SOURCE_DIR}
-	BINARY_DIR ${PROTOBUF_INSTALL_DIR}
-	BUILD_COMMAND make -C ${PROTOBUF_INSTALL_DIR}
-	INSTALL_DIR ${PROTOBUF_INSTALL_DIR}
-	INSTALL_COMMAND true
-	LOG_BUILD 1 Building protobuf)
-
-ExternalProject_Add(libzmq
-	SOURCE_DIR ${LIBZMQ_SOURCE_DIR}
-	CONFIGURE_COMMAND cmake ${LIBZMQ_SOURCE_DIR}
-	DOWNLOAD_DIR ${PROJECT_SOURCE_DIR}
-	DOWNLOAD_COMMAND git submodule update --init ${LIBZMQ_SOURCE_DIR}
-	BINARY_DIR ${LIBZMQ_INSTALL_DIR}
-	BUILD_COMMAND make libzmq-static
-	INSTALL_DIR ${LIBZMQ_INSTALL_DIR}
-	INSTALL_COMMAND true
-	LOG_BUILD 1 Building libzmq)
-
-ExternalProject_Add(zmqpp
-	DEPENDS libzmq
-	SOURCE_DIR ${ZMQPP_SOURCE_DIR}
-	CONFIGURE_COMMAND cmake -D ZEROMQ_INCLUDE=${LIBZMQ_SOURCE_DIR}/include -D ZEROMQ_LIBRARY_SHARED=${ZMQPP_INSTALL_DIR}/lib/libzmq.so -D ZEROMQ_LIBRARY_STATIC=${ZMQPP_INSTALL_DIR}/lib/libzmq-static.a ${ZMQPP_SOURCE_DIR}
-	DOWNLOAD_DIR ${PROJECT_SOURCE_DIR}
-	DOWNLOAD_COMMAND git submodule update --init ${ZMQPP_SOURCE_DIR}
-	BINARY_DIR ${ZMQPP_INSTALL_DIR}
-	BUILD_COMMAND make zmqpp-static
-	INSTALL_DIR ${ZMQPP_INSTALL_DIR}
-	INSTALL_COMMAND true
-	LOG_BUILD 1 Building zmqpp)
 
 ExternalProject_Add(packetgraph
 	SOURCE_DIR ${PG_SOURCE_DIR}
@@ -75,4 +39,4 @@ add_custom_target(clean-dpdk
 
 add_custom_target(3rdparty)
 
-add_dependencies(packetgraph dpdk protobuf libzmq zmqpp)
+add_dependencies(packetgraph dpdk)
