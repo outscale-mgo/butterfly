@@ -1,6 +1,0 @@
-# Introduction
-
-butterfly command sends messages to butterfly API (butterflyd).
-
-It have several sub-commands, run butterfly to get all subcommands.
-
