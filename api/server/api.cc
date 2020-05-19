@@ -15,7 +15,6 @@
  * along with Butterfly.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <google/protobuf/text_format.h>
 #include <iostream>
 #include <functional>
 #include <string>
@@ -25,7 +24,6 @@
 #include "api/server/api.h"
 #include "api/server/app.h"
 #include "api/server/model.h"
-#include "api/protocol/message.pb.h"
 #include "api/version.h"
 
 void Api::ProcessRequest(const std::string &request, std::string *response,

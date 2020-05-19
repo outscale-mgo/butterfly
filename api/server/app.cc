@@ -30,7 +30,6 @@ extern "C" {
 #include <memory>
 #include "api/server/app.h"
 #include "api/server/graph.h"
-#include "api/server/server.h"
 #include "api/server/simpleini/SimpleIni.hpp"
 #include "api/version.h"
 #include "api/common/crypto.h"
@@ -552,11 +551,11 @@ main(int argc, char *argv[]) {
         }
         InitCgroup(POLL_THREAD_MULTIPLIER);
         // Prepare & run API server
-        ApiServer server(app::config.api_endpoint, &app::request_exit);
-        server.RunThreaded();
-
-        while (!app::request_exit)
-            std::this_thread::sleep_for(std::chrono::seconds(1));
+	while (1) {
+		LOG_DEBUG_("ZMQ received a message");
+		process(request);
+		LOG_DEBUG_("ZMQ send");
+	}
     } catch (std::exception & e) {
         LOG_ERROR_("%s", e.what());
     }
