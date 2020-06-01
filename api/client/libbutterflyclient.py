@@ -25,6 +25,7 @@ IP = 2
 MAC = 3
 STRING = 4
 BOOL = 5
+STRING_LIST = 5
 
 subhelper = {"nic":
              {
@@ -86,7 +87,13 @@ helpers = {"nic":
 commandes = {"nic" : {"list": BOOL, "add":
                       {"--ip": IP, "--dip": IP,  "--mac": MAC, "--dmac": MAC,
                        "--id": STRING, "--type": STRING, "--sg": STRING, "--vni": NUMBER,
-                       "--bypass-filtering": BOOL, "--packet-trace": BOOL, "--trace-path": STRING}
+                       "--bypass-filtering": BOOL, "--packet-trace": BOOL, "--trace-path": STRING},
+                      "stats": STRING,
+                      "details": STRING,
+                      "sg": {
+                          "list": BOOL,
+                          "add": STRING_LIST
+                      }
 },
              "dump" : BOOL,
              "sg": {"list": BOOL }
@@ -126,6 +133,12 @@ def append_arg(params, t, i):
         params.append(int(get_arg(i + 1, "missing argument")))
         print("append int:", sys.argv[i + 1])
         return i + 2
+    elif t == STRING_LIST:
+        i += 1
+        while i >= args_len and i != "--":
+            params.append(get_arg(i, "missing argument"))
+            i += i
+        return i
     else:
         exit("unknow arguments")
     exit("Bad Argument" + sys.argv[i])
