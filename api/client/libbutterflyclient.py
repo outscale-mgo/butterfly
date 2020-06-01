@@ -10,8 +10,9 @@ timeout = -1
 verbose = 0
 
 
-def help(ret):
+def help(ret, prepend=""):
     print(
+        prepend,
         "global options:\n",
         "    --verbose, -v   show details of each operation\n",
         "    --timeout, -t   set a timeout for each operations in ms\n",
@@ -51,15 +52,35 @@ subhelper = {"nic":
 }
 
 helpers = {"nic":
-        "butterfly nic subcommands:\n"+
-        "    list     list all nics id\n"+
-        "    stats    show nic statistics\n"+
-        "    details  prints nics's details\n"+
-        "    sg       manage security groups attached to a nic\n"+
-        "    add      create a new nic\n"+
-        "    del      remove nic(s)\n"+
-        "    update   update a nic\n"+
-        "    help     print this and return 0\n"
+           "butterfly nic subcommands:\n"+
+           "    list     list all nics id\n"+
+           "    stats    show nic statistics\n"+
+           "    details  prints nics's details\n"+
+           "    sg       manage security groups attached to a nic\n"+
+           "    add      create a new nic\n"+
+           "    del      remove nic(s)\n"+
+           "    update   update a nic\n"+
+           "    help     print this and return 0\n",
+
+           "sg":
+           "butterfly sg subcommands:\n" +
+           "    list    list security groups\n" +
+           "    add     create one or more security groups\n" +
+           "    del     remove one or more security groups\n" +
+           "    rule    manage security group rules\n" +
+           "    member  manage security group members",
+
+           "dump":
+           "usage: butterfly dump [options...]\n" +
+           "Dump all butterfly configuration (nics and security groups) to "
+           "stdout.\n" +
+           "The generated data contains all requests ready to send to an other "
+           "Butterfly\n" +
+           "Example: \n" +
+           "- butterfly dump > butterfly.dump\n" +
+           "- butterfly shutdown\n" +
+           "- start butterfly again\n" +
+           "- butterfly request butterfly.dump"
 }
 
 commandes = {"nic" : {"list": BOOL, "add":
@@ -67,88 +88,114 @@ commandes = {"nic" : {"list": BOOL, "add":
                        "--id": STRING, "--type": STRING, "--sg": STRING, "--vni": NUMBER,
                        "--bypass-filtering": BOOL, "--packet-trace": BOOL, "--trace-path": STRING}
 },
-             "dump" : BOOL
+             "dump" : BOOL,
+             "sg": {"list": BOOL }
 }
 
-method0 = "NOPE"
-method1 = None
-params = []
+msgs = []
+
+def mk_msg():
+    ret = {"method0": None, "method1": None, 'params': []}
+    msgs.append(ret)
+    return ret
+
 
 connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))
 channel = connection.channel()
 
 channel.queue_declare(queue='test')
 
-def append_arg(params, t, i):
-    if t == BOOL:
-        return i
-    elif t == STRING:
-        params.append(sys.argv[i])
-        return i + 1
-    exit("Bad Argument")
+def get_arg(i, error):
+    if i >= args_len:
+        sys.exit(error)
+    return sys.argv[i]
 
-i = 0
+def append_arg(params, t, i):
+    param_name = get_arg(i, "missing argument").strip('-')
+    if param_name in params:
+        exit(param_name + " define twice")
+    params.append(param_name)
+    if t == BOOL:
+        print("BOOL:", t)
+        return i + 1
+    elif t == STRING or t == IP or t == MAC:
+        params.append(get_arg(i + 1, "missing argument"))
+        print("append", t, sys.argv[i + 1])
+        return i + 2
+    elif t == NUMBER:
+        params.append(int(get_arg(i + 1, "missing argument")))
+        print("append int:", sys.argv[i + 1])
+        return i + 2
+    else:
+        exit("unknow arguments")
+    exit("Bad Argument" + sys.argv[i])
+
+i = 1 # we skip program name
 while i < args_len:
     a = sys.argv[i]
+    print("a:", a)
     if a == "--help" or a == "-h":
         sys.exit(help(0))
-    if a == "--verbose" or a == "-v":
+    elif a == "--verbose" or a == "-v":
         verbose = 1
-    if a == "--timeout" or a == "-t":
-        if i + 1 == args_len:
-            sys.exit("timeout missing argument")
-        timeout = int(sys.argv[i + 1])
+    elif a == "--timeout" or a == "-t":
+        timeout = int(get_arg(i + 1, "timeout missing argument"))
         i += 2
         continue
 
-    if a in commandes:
+    elif a in commandes:
+        msg = mk_msg()
         m = commandes[a]
-        print("COMMAND:", a)
-        method0 = a
+        msg["method0"] = a
         if type(m) is int:
-            i = append_arg(params, m, i) + 1
+            i = append_arg(msg["params"], m, i) + 1
             continue
         i += 1
-        a = sys.argv[i]
+        a = get_arg(i, "missing argument")
         if a in m:
-            method1 = a
-            i += 1
-            print(m[a])
+            msg["method1"] = a
 
             if type(m[a]) is int:
-                i = append_arg(params, m[a], i)
+                i = append_arg(msg["params"], m[a], i)
             elif type(m[a]) is dict:
                 commade_good = False
+                mp = m[a]
+                i += 1
                 ca = sys.argv[i]
-                print(ca, m[a])
-                while ca in m[a]:
-                    i += i
+                while ca in mp:
+                    print(i, ca, mp[ca], sys.argv[i])
                     if i == args_len:
                         break
                     commade_good = True
-                    print("key", ca.strip('-'))
+                    i = append_arg(msg["params"], mp[ca], i)
                     ca = sys.argv[i]
 
                 if commade_good == False:
-                    sys.exit("invalide argument : '" + ca + "'\n" + subhelper[method0][method1])
-                print("My tralala !")
+                    sys.exit("invalide argument : '" + ca + "'\n" +
+                             subhelper[msg["method0"]][msg["method1"]])
+                continue
         else:
-            sys.exit(helpers[method0])
-        print(method1)
+            sys.exit(helpers[msg["method0"]])
+        print(msg["method1"])
+    elif a != "--":
+        exit(help(1, prepend="unknow argument:" + a + "\n"))
     i += 1
 
-payload = json.dumps ({
-    "method": [method0, method1],
-    "params": params,
-    "jsonrpc": "2.0",
-    "id": 0,
-})
+print("verbose: ", verbose)
 
-print(payload)
-channel.basic_publish(exchange='amq.direct',
-                      routing_key='test',
-                      body=payload)
+for msg in msgs:
+    payload = json.dumps ({
+        "method": [msg["method0"], msg["method1"]],
+        "params": msg["params"],
+        "jsonrpc": "2.0",
+        "id": 0,
+    })
 
-print(" [x] Sent 'msg!'")
+    print(payload)
+    channel.basic_publish(exchange='amq.direct',
+                          routing_key='test',
+                          body=payload)
+
+    print(" [x] Sent 'msg!'")
 
 connection.close()
