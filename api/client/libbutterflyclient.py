@@ -25,7 +25,7 @@ IP = 2
 MAC = 3
 STRING = 4
 BOOL = 5
-STRING_LIST = 5
+STRING_LIST = 6
 
 subhelper = {"nic":
              {
@@ -48,7 +48,13 @@ subhelper = {"nic":
                  "    (default: use server behaviour)\n" +
                  "    --trace-path PATH    where to store pcap file if packet-trace" +
                  "    was set true (default: PATH = /tmp/butterfly-PID-nic-NICID.pcap)\n" +
-                 "    --bypass-filtering  remove all filters and protection"
+                 "    --bypass-filtering  remove all filters and protection",
+                 "sg":
+                 "butterfly nic sg subcommands:\n" +
+                 "    list  list security groups attached to a nic\n" +
+                 "    add   add one or more security group to a nic\n" +
+                 "    del   removes one or more security group of a nic\n" +
+                 "    set   update all security groups of a nic"
              }
 }
 
@@ -119,9 +125,9 @@ def get_arg(i, error):
 
 def append_arg(params, t, i):
     param_name = get_arg(i, "missing argument").strip('-')
-    if param_name in params:
-        exit(param_name + " define twice")
     params.append(param_name)
+    print(param_name, type(t))
+
     if t == BOOL:
         print("BOOL:", t)
         return i + 1
@@ -134,13 +140,15 @@ def append_arg(params, t, i):
         print("append int:", sys.argv[i + 1])
         return i + 2
     elif t == STRING_LIST:
+        print("STRING_LIST")
         i += 1
-        while i >= args_len and i != "--":
+        while i < args_len and i != "--":
+            print("append", t, sys.argv[i])
             params.append(get_arg(i, "missing argument"))
-            i += i
+            i += 1
         return i
     else:
-        exit("unknow arguments")
+        exit("unknow arguments: " + param_name)
     exit("Bad Argument" + sys.argv[i])
 
 i = 1 # we skip program name
@@ -181,7 +189,10 @@ while i < args_len:
                         break
                     commade_good = True
                     i = append_arg(msg["params"], mp[ca], i)
-                    ca = sys.argv[i]
+                    if i < args_len:
+                        ca = sys.argv[i]
+                    else:
+                        ca = None
 
                 if commade_good == False:
                     sys.exit("invalide argument : '" + ca + "'\n" +
