@@ -27,28 +27,29 @@ STRING = 4
 BOOL = 5
 STRING_LIST = 6
 
+nic_add_update_help = """options:
+    --ip IP             virtual interface's ip (v4 or v6)
+    --mac MAC           virtual interface's mac (mandatory)
+    --id ID             interface's id (mandatory)
+    --type TYPE         nic type (VHOST_USER_SERVER, BENCH or TAP default: VHOST_USER_SERVER)
+    --btype BENCH_TYPE  bench type ICMP_SND_LIKE or ICMP_RCV_LIKE (for bench)
+    --dip IP            interface's dest ip (for bench)
+    --dmac MAC          interface's dest mac (for bench)
+    --vni VNI           virtual network id < 2^26 (mandatory)
+    --enable-antispoof  enable antispoof protection (default: off)
+    --packet-trace      true/false  trace a nic or not (default: use server behaviour)
+    --trace-path PATH    where to store pcap file if packet-trace
+    was set true (default: PATH = /tmp/butterfly-PID-nic-NICID.pcap)
+    --bypass-filtering  remove all filters and protection
+"""
+
 subhelper = {"nic":
              {
                  "list": "usage: butterfly nic list",
-                 "add":
-                 "usage: butterfly nic add [options...]" +
-                 "options:\n" +
-                 "    --ip IP             virtual interface's ip (v4 or v6)\n" +
-                 "    --mac MAC           virtual interface's mac (mandatory)\n" +
-                 "    --id ID             interface's id (mandatory)\n" +
-                 "    --type TYPE         nic type (VHOST_USER_SERVER, BENCH or " +
-                 "    TAP default: VHOST_USER_SERVER)\n" +
-                 "    --btype BENCH_TYPE  bench type ICMP_SND_LIKE or " +
-                 "ICMP_RCV_LIKE (for bench)\n" +
-                 "    --dip IP            interface's dest ip (for bench)\n" +
-                 "    --dmac MAC          interface's dest mac (for bench)\n" +
-                 "    --vni VNI           virtual network id < 2^26 (mandatory)\n" +
-                 "    --enable-antispoof  enable antispoof protection (default: off)\n"
-                 "    --packet-trace      true/false  trace a nic or not " +
-                 "    (default: use server behaviour)\n" +
-                 "    --trace-path PATH    where to store pcap file if packet-trace" +
-                 "    was set true (default: PATH = /tmp/butterfly-PID-nic-NICID.pcap)\n" +
-                 "    --bypass-filtering  remove all filters and protection",
+                 "add": "usage: butterfly nic add [options...]\n" +
+                 nic_add_update_help,
+                 "update": "usage: butterfly nic update [options...]\n" +
+                 nic_add_update_help,
                  "sg":
                  "butterfly nic sg subcommands:\n" +
                  "    list  list security groups attached to a nic\n" +
@@ -98,7 +99,15 @@ commandes = {"nic" : {"list": BOOL, "add":
                       "details": STRING,
                       "sg": {
                           "list": BOOL,
-                          "add": STRING_LIST
+                          "add": STRING_LIST,
+                          "del": STRING_LIST,
+                          "set": STRING_LIST,
+                      },
+                      "del": STRING,
+                      "update": {
+                          "--ip": IP, "--dip": IP,  "--mac": MAC, "--dmac": MAC,
+                          "--id": STRING, "--type": STRING, "--sg": STRING, "--vni": NUMBER,
+                          "--bypass-filtering": BOOL, "--packet-trace": BOOL, "--trace-path": STRING
                       }
 },
              "dump" : BOOL,
