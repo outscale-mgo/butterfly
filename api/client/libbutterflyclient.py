@@ -56,6 +56,14 @@ subhelper = {"nic":
                  "    add   add one or more security group to a nic\n" +
                  "    del   removes one or more security group of a nic\n" +
                  "    set   update all security groups of a nic"
+             },
+             "sg": {
+                 "member": """
+butterfly sg member subcommands:"
+    list  list members of a security group
+    add   add member to a security group
+    del   remove member of a security group
+                 """
              }
 }
 
@@ -103,7 +111,7 @@ commandes = {"nic" : {"list": BOOL, "add":
                           "del": STRING_LIST,
                           "set": STRING_LIST,
                       },
-                      "del": STRING,
+                      "del": STRING_LIST,
                       "update": {
                           "--ip": IP, "--dip": IP,  "--mac": MAC, "--dmac": MAC,
                           "--id": STRING, "--type": STRING, "--sg": STRING, "--vni": NUMBER,
@@ -111,7 +119,30 @@ commandes = {"nic" : {"list": BOOL, "add":
                       }
 },
              "dump" : BOOL,
-             "sg": {"list": BOOL }
+             "sg": {"list": BOOL,
+                    "member": {
+                        "list": STRING,
+                        "add": STRING_LIST,
+                        "del": STRING_LIST
+                    },
+                    "add": STRING_LIST,
+                    "del": STRING_LIST,
+                    "rule": {
+                        "list": STRING,
+                        "add": {
+                            "--dir": STRING,
+                            "--ip-proto": STRING,
+                            "--port": NUMBER,
+                            "--port-start": NUMBER,
+                            "--port-end": NUMBER,
+                            "--cidr": STRING,
+                            "--sg-members": STRING_LIST
+                        },
+                        "del": STRING_LIST
+                    }
+             },
+             "shutdown" : BOOL,
+             "status": BOOL
 }
 
 msgs = []
@@ -137,7 +168,17 @@ def append_arg(params, t, i):
     params.append(param_name)
     print(param_name, type(t))
 
-    if t == BOOL:
+    if type(t) == dict:
+        j = i + 1
+        a = get_arg(j, "wesh - 0")
+        while a in t:
+            print("while", a, "in ", t[a])
+            j = append_arg(params, t[a], j)
+            if j >= args_len:
+                return j
+            a = sys.argv[j]
+        return j
+    elif t == BOOL:
         print("BOOL:", t)
         return i + 1
     elif t == STRING or t == IP or t == MAC:
