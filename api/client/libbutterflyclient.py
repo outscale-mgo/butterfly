@@ -63,6 +63,33 @@ butterfly sg member subcommands:"
     list  list members of a security group
     add   add member to a security group
     del   remove member of a security group
+                 """,
+                 "rule": """
+butterfly sg rule subcommands:
+    list  list security group rules
+
+    add   Add a new firewalling rule inside a security group
+              usage: butterfly sg rule add SG [options...]
+                 options:
+                 --dir DIRECTION    rule direction 'in' or 'out' (default: in)"
+                 --ip-proto PROTO   IP protocol to allow (mandatory)"
+                 --port PORT        open a single port"
+                 --port-start PORT  port range start
+                 --port-end PORT    port range end
+                 --cidr CIDR        adress mask to allow in CIDR format
+                 --sg-members SG    security group members to allow
+
+                 PROTO:
+                 Must be 'tcp', 'udp', 'icmp', a number between 0 and 255
+                 or 'all' to allow all protocols
+                 PORT:
+                 if you set udp or tcp in protocol, you can set a port between
+                 0 and 65535
+                 Notes: you MUST set either --cidr or --sg-members
+
+    del   Remove a firewalling rule from a security group
+                 first usage: butterfly sg rule del SG RULE_HASH
+                 You can get RULE_HASH from sg rule list subcommand
                  """
              }
 }
