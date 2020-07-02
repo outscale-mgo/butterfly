@@ -1,8 +1,5 @@
 set(SOURCES app.cc
-            server.cc
             model.cc
-            api.cc
-            api_0.cc
             graph.cc
             encrypted.cc
             ../common/crypto.cc)
