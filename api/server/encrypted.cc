@@ -16,7 +16,6 @@
  */
 
 #include <algorithm>
-#include "api/server/api.h"
 #include "api/server/app.h"
 #include "api/common/crypto.h"
 
@@ -49,12 +48,12 @@ void Process(const Encrypted &req, Encrypted *res) {
 
     // Process request
     std::string response_string;
-    try {
-        Api::ProcessRequest(request_string, &response_string, true);
-    } catch (std::exception &e) {
-        LOG_ERROR_("internal error: %s", e.what());
-        Api::BuildInternalError(&response_string);
-    }
+    // try {
+    //     Api::ProcessRequest(request_string, &response_string, true);
+    // } catch (std::exception &e) {
+    //     LOG_ERROR_("internal error: %s", e.what());
+    //     Api::BuildInternalError(&response_string);
+    // }
 
     std::string encrypted;
     if (!Crypto::EncAes256CbcSha512(app::config.encryption_key,

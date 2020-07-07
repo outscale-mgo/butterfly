@@ -568,15 +568,100 @@ int chk_on_amqp_error(amqp_rpc_reply_t x, char const *context) {
     return 1;
 }
 
+static void dump_row(long count, int numinrow, int *chs) {
+  int i;
+
+  printf("%08lX:", count - numinrow);
+
+  if (numinrow > 0) {
+    for (i = 0; i < numinrow; i++) {
+      if (i == 8) {
+        printf(" :");
+      }
+      printf(" %02X", chs[i]);
+    }
+    for (i = numinrow; i < 16; i++) {
+      if (i == 8) {
+        printf(" :");
+      }
+      printf("   ");
+    }
+    printf("  ");
+    for (i = 0; i < numinrow; i++) {
+      if (isprint(chs[i])) {
+        printf("%c", chs[i]);
+      } else {
+        printf(".");
+      }
+    }
+  }
+  printf("\n");
+}
+
+static int rows_eq(int *a, int *b) {
+  int i;
+
+  for (i = 0; i < 16; i++)
+    if (a[i] != b[i]) {
+      return 0;
+    }
+
+  return 1;
+}
+
+void amqp_dump(void const *buffer, size_t len) {
+  unsigned char *buf = (unsigned char *)buffer;
+  long count = 0;
+  int numinrow = 0;
+  int chs[16];
+  int oldchs[16] = {0};
+  int showed_dots = 0;
+  size_t i;
+
+  for (i = 0; i < len; i++) {
+    int ch = buf[i];
+
+    if (numinrow == 16) {
+      int j;
+
+      if (rows_eq(oldchs, chs)) {
+        if (!showed_dots) {
+          showed_dots = 1;
+          printf(
+              "          .. .. .. .. .. .. .. .. : .. .. .. .. .. .. .. ..\n");
+        }
+      } else {
+        showed_dots = 0;
+        dump_row(count, numinrow, chs);
+      }
+
+      for (j = 0; j < 16; j++) {
+        oldchs[j] = chs[j];
+      }
+
+      numinrow = 0;
+    }
+
+    count++;
+    chs[numinrow++] = ch;
+  }
+
+  dump_row(count, numinrow, chs);
+
+  if (numinrow != 0) {
+    printf("%08lX:\n", count);
+  }
+}
+
 int
 main(int argc, char *argv[]) {
     int ret  = 0;
-    std::string hostname;
-    int port;
+    std::string hostname = "127.0.0.1";
+    int port = 4242;
     int status;
     amqp_bytes_t queuename;
-    char const *exchange;
-    char const *bindingkey;
+    char const *exchange = "amq.direct";
+    char const *bindingkey = "broadcast";
 
     try {
         // Register signals
@@ -629,7 +714,7 @@ main(int argc, char *argv[]) {
 	printf("yay %s\n", app::config.api_endpoint.c_str());
 	status = amqp_socket_open(socket, hostname.c_str(), port);
 	if (status) {
-		die("opening TCP socket %s %d %s", hostname.c_str(), port, strerror(-status));
+            die("opening TCP socket %s %d %s", hostname.c_str(), port, strerror(-status));
 	}
 
 	die_on_amqp_error(amqp_login(conn, "/", 0, 131072, 0, AMQP_SASL_METHOD_PLAIN,
@@ -639,14 +724,14 @@ main(int argc, char *argv[]) {
 	die_on_amqp_error(amqp_get_rpc_reply(conn), "Opening channel");
 
 	{
-		amqp_queue_declare_ok_t *r = amqp_queue_declare(
-			conn, 1, amqp_empty_bytes, 0, 0, 0, 1, amqp_empty_table);
-		die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
-		queuename = amqp_bytes_malloc_dup(r->queue);
-		if (queuename.bytes == NULL) {
-			fprintf(stderr, "Out of memory while copying queue name");
-			return 1;
-		}
+            amqp_queue_declare_ok_t *r = amqp_queue_declare(
+                conn, 1, amqp_empty_bytes, 0, 0, 0, 1, amqp_empty_table);
+            die_on_amqp_error(amqp_get_rpc_reply(conn), "Declaring queue");
+            queuename = amqp_bytes_malloc_dup(r->queue);
+            if (queuename.bytes == NULL) {
+                fprintf(stderr, "Out of memory while copying queue name");
+                return 1;
+            }
 	}
 
 	amqp_queue_bind(conn, 1, queuename, amqp_cstring_bytes(exchange),
@@ -657,32 +742,34 @@ main(int argc, char *argv[]) {
 			   amqp_empty_table);
 	die_on_amqp_error(amqp_get_rpc_reply(conn), "Consuming");
 	while (1) {
-		LOG_DEBUG_("RabbitMQ received a message");
+            LOG_DEBUG_("RabbitMQ received a message");
 
-		amqp_rpc_reply_t res;
-		amqp_envelope_t envelope;
+            amqp_rpc_reply_t res;
+            amqp_envelope_t envelope;
 
-		amqp_maybe_release_buffers(conn);
+            amqp_maybe_release_buffers(conn);
 
-		res = amqp_consume_message(conn, &envelope, NULL, 0);
+            res = amqp_consume_message(conn, &envelope, NULL, 0);
 
-		if (AMQP_RESPONSE_NORMAL != res.reply_type) {
-			break;
-		}
+            if (AMQP_RESPONSE_NORMAL != res.reply_type) {
+                break;
+            }
 
-		printf("Delivery %u, exchange %.*s routingkey %.*s\n",
-		       (unsigned)envelope.delivery_tag, (int)envelope.exchange.len,
-		       (char *)envelope.exchange.bytes, (int)envelope.routing_key.len,
-		       (char *)envelope.routing_key.bytes);
+            printf("Delivery %u, exchange %.*s routingkey %.*s\n",
+                   (unsigned)envelope.delivery_tag, (int)envelope.exchange.len,
+                   (char *)envelope.exchange.bytes, (int)envelope.routing_key.len,
+                   (char *)envelope.routing_key.bytes);
 
-		if (envelope.message.properties._flags & AMQP_BASIC_CONTENT_TYPE_FLAG) {
-			printf("Content-type: %.*s\n",
-			       (int)envelope.message.properties.content_type.len,
-			       (char *)envelope.message.properties.content_type.bytes);
-		}
-		printf("----\n");
+            if (envelope.message.properties._flags & AMQP_BASIC_CONTENT_TYPE_FLAG) {
+                printf("Content-type: %.*s\n",
+                       (int)envelope.message.properties.content_type.len,
+                       (char *)envelope.message.properties.content_type.bytes);
+            }
+            printf("----\n");
 
-		amqp_destroy_envelope(&envelope);
+            amqp_dump(envelope.message.body.bytes, envelope.message.body.len);
+
+            amqp_destroy_envelope(&envelope);
 	}
 	amqp_bytes_free(queuename);
 

@@ -1,7 +1,6 @@
 set(SOURCES app.cc
             model.cc
             graph.cc
-            encrypted.cc
             ../common/crypto.cc)
 
 set (SOURCES_P)
