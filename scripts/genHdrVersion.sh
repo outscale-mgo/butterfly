@@ -29,7 +29,7 @@ DATE=`git log -1 | grep Date | awk -F "   " '{ print $2 }' | awk -F '+' '{ print
 NAME=`git log --oneline -1 | awk -F ' ' '{print $1}'`
 
 PROJECT_ROOT=$(cd "$(dirname $0)/.." && pwd)
-source $PROJECT_ROOT/api/protocol/version
+source $PROJECT_ROOT/api/server/version
 
 tmp=version_tmp.h
 echo "" > $tmp
