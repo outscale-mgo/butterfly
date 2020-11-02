@@ -10,7 +10,7 @@ endforeach()
 
 add_executable(api_server ${SOURCES_P})
 
-add_dependencies(api_server api_protocol butterfly-genere-version)
+add_dependencies(api_server butterfly-genere-version)
 
 set_target_properties(api_server PROPERTIES OUTPUT_NAME butterflyd)
 
@@ -24,7 +24,6 @@ include_directories(${GLIB2_INCLUDE_DIR} ${GLIB2_INTERNAL_INCLUDE_DIR}
                     )
 
 target_link_libraries(api_server
-                      api_protocol
                       pthread
                       pcap
                       dl
